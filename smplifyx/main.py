@@ -41,6 +41,8 @@ from prior import create_prior
 torch.backends.cudnn.enabled = False
 
 
+SCRIPT_PATH = os.path.dirname(os.path.realpath(__file__))
+
 def main(**args):
     output_folder = args.pop('output_folder')
     output_folder = osp.expandvars(output_folder)
@@ -268,5 +270,22 @@ def main(**args):
 
 
 if __name__ == "__main__":
-    args = parse_config()
+    DATA_FOLDER="/media/psf/WVerbatim/data/mevolve/smplify-x/prox-data"
+    OUTPUT_FOLDER=DATA_FOLDER + "/output"
+    MODEL_FOLDER="/media/psf/WVerbatim/data/mevolve/smplify-x/models"
+    VPOSER_FOLDER="/media/psf/WVerbatim/data/mevolve/smplify-x/vposer_v1_0"
+    import sys
+    argv = [ "--config", SCRIPT_PATH + "/../cfg_files/fit_smpl.yaml", 
+             "--use_cuda", "0", 
+             "--interpenetration", "0",
+             "--visualize", "0",
+             "--interactive", "0",
+             "--data_folder", DATA_FOLDER, 
+             "--output_folder", OUTPUT_FOLDER, 
+             "--visualize", "True", 
+             "--model_folder", MODEL_FOLDER, 
+             "--vposer_ckpt", VPOSER_FOLDER,
+             "--gender", "male"]
+#    argv=None
+    args = parse_config(argv)
     main(**args)

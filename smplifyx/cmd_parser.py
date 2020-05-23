@@ -278,6 +278,6 @@ def parse_config(argv=None):
     parser.add_argument('--maxiters', type=int, default=100,
                         help='The maximum iterations for the optimization')
 
-    args = parser.parse_args()
+    args = parser.parse_args(argv)
     args_dict = vars(args)
     return args_dict
