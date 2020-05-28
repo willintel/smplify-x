@@ -40,14 +40,21 @@ from prior import create_prior
 
 torch.backends.cudnn.enabled = False
 
-
 SCRIPT_PATH = os.path.dirname(os.path.realpath(__file__))
+LOOK_PYTOOLS_PATH = "/home/william/dev/look/pytools"
+
+sys.path.insert(0, LOOK_PYTOOLS_PATH)
+import body_fit
 
 def main(**args):
     output_folder = args.pop('output_folder')
     output_folder = osp.expandvars(output_folder)
     if not osp.exists(output_folder):
         os.makedirs(output_folder)
+
+    print("Preparing fit-data")
+    fdata = body_fit.fitting_data.FittingData(rec_data_folder=None,
+                                 output_folder=args.get('data_folder'))
 
     # Store the arguments for the current experiment
     conf_fn = osp.join(output_folder, 'conf.yaml')
@@ -124,6 +131,15 @@ def main(**args):
 
     # Create the camera object
     focal_length = args.get('focal_length')
+    # focal_lengths = [focal_length, focal_length]
+    # print("focal_lengths 1:", focal_lengths)
+
+    focal_lengths = fdata.get_projection().color_cam["f"] #torch.tensor([fdata.get_projection().color_cam["f"]], dtype=dtype)
+    focal_length = 0.5*(focal_lengths[0] + focal_lengths[1])
+    # focal_length = 7000.0
+    args['focal_length'] = focal_length
+
+    print("focal_length:", focal_length)
     camera = create_camera(focal_length_x=focal_length,
                            focal_length_y=focal_length,
                            dtype=dtype,
@@ -201,11 +217,14 @@ def main(**args):
     joint_weights.unsqueeze_(dim=0)
 
     for idx, data in enumerate(dataset_obj):
-
         img = data['img']
+        depth_img = data['depth_img']
         fn = data['fn']
         keypoints = data['keypoints']
         print('Processing: {}'.format(data['img_path']))
+
+        xyz = body_fit.projection.unproject_and_transform_depth(depth_img, body_fit_data.get_projection().depth_cam)
+        xyz = xyz[depth_img > 0, :]
 
         curr_result_folder = osp.join(result_folder, fn)
         if not osp.exists(curr_result_folder):
@@ -244,7 +263,7 @@ def main(**args):
 
             out_img_fn = osp.join(curr_img_folder, 'output.png')
 
-            fit_single_frame(img, keypoints[[person_id]],
+            fit_single_frame(img, xyz, keypoints[[person_id]],
                              body_model=body_model,
                              camera=camera,
                              joint_weights=joint_weights,
@@ -261,6 +280,7 @@ def main(**args):
                              right_hand_prior=right_hand_prior,
                              jaw_prior=jaw_prior,
                              angle_prior=angle_prior,
+                             body_fit_data=fdata,
                              **args)
 
     elapsed = time.time() - start
@@ -278,14 +298,14 @@ if __name__ == "__main__":
     argv = [ "--config", SCRIPT_PATH + "/../cfg_files/fit_smpl.yaml", 
              "--use_cuda", "0", 
              "--interpenetration", "0",
-             "--visualize", "0",
              "--interactive", "0",
              "--data_folder", DATA_FOLDER, 
              "--output_folder", OUTPUT_FOLDER, 
-             "--visualize", "True", 
+             "--visualize", "False", 
              "--model_folder", MODEL_FOLDER, 
              "--vposer_ckpt", VPOSER_FOLDER,
              "--gender", "male"]
-#    argv=None
+    argv=None
     args = parse_config(argv)
+    print("args:", args)
     main(**args)

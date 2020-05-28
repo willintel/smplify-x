@@ -105,7 +105,7 @@ class OpenPose(Dataset):
     NUM_BODY_JOINTS = 25
     NUM_HAND_JOINTS = 20
 
-    def __init__(self, data_folder, img_folder='images',
+    def __init__(self, data_folder, img_folder='images', depth_folder='depth',
                  keyp_folder='keypoints',
                  use_hands=False,
                  use_face=False,
@@ -138,6 +138,13 @@ class OpenPose(Dataset):
                           img_fn.endswith('.jpg') and
                           not img_fn.startswith('.')]
         self.img_paths = sorted(self.img_paths)
+
+        self.depth_paths = [osp.join(self.depth_folder, img_fn)
+                          for img_fn in os.listdir(self.depth_folder)
+                          if img_fn.endswith('.png') or
+                          img_fn.endswith('.jpg') and
+                          not img_fn.startswith('.')]
+        self.depth_paths = sorted(self.depth_paths)
         self.cnt = 0
 
     def get_model2data(self):
@@ -173,10 +180,17 @@ class OpenPose(Dataset):
         img_path = self.img_paths[idx]
         return self.read_item(img_path)
 
-    def read_item(self, img_path):
+    def read_item(self, img_path, depth_path=None):
         img = cv2.imread(img_path).astype(np.float32)[:, :, ::-1] / 255.0
         img_fn = osp.split(img_path)[1]
         img_fn, _ = osp.splitext(osp.split(img_path)[1])
+
+        depth_img = None
+        if depth_path is not None and os.path.exists(depth_path):
+            depth_img = cv2.imread(depth_path, flags=-1).astype(float)
+            depth_raw = depth_img.copy()
+            depth_img = depth_img / 10000.0
+            depth_img[depth_img > 1.9] = 0.0
 
         keypoint_fn = osp.join(self.keyp_folder,
                                img_fn + '_keypoints.json')
@@ -190,7 +204,10 @@ class OpenPose(Dataset):
 
         output_dict = {'fn': img_fn,
                        'img_path': img_path,
-                       'keypoints': keypoints, 'img': img}
+                       'keypoints': keypoints,
+                       'img': img,
+                       'depth_img': depth_img,
+                       }
         if keyp_tuple.gender_gt is not None:
             if len(keyp_tuple.gender_gt) > 0:
                 output_dict['gender_gt'] = keyp_tuple.gender_gt
@@ -210,6 +227,7 @@ class OpenPose(Dataset):
             raise StopIteration
 
         img_path = self.img_paths[self.cnt]
+        depth_path = self.depth_paths[self.cnt]
         self.cnt += 1
 
-        return self.read_item(img_path)
+        return self.read_item(img_path, depth_path)

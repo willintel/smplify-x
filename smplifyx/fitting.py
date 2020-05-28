@@ -100,6 +100,7 @@ def guess_init(model,
     height3d = length_3d.mean(dim=1)
 
     est_d = focal_length * (height3d / height2d)
+    print("focal_length here:", focal_length, " est_d:", est_d)
 
     # just set the z value
     batch_size = joints_3d.shape[0]
@@ -122,7 +123,7 @@ class FittingMonitor(object):
         self.ftol = ftol
         self.gtol = gtol
 
-        self.visualize = visualize
+        self.visualize = False# visualize
         self.summary_steps = summary_steps
         self.body_color = body_color
         self.model_type = model_type

@@ -47,6 +47,7 @@ from human_body_prior.tools.model_loader import load_vposer
 
 
 def fit_single_frame(img,
+                     xyz,
                      keypoints,
                      body_model,
                      camera,
@@ -97,10 +98,12 @@ def fit_single_frame(img,
                      ign_part_pairs=None,
                      left_shoulder_idx=2,
                      right_shoulder_idx=5,
+                     body_fit_data=None,
                      **kwargs):
     assert batch_size == 1, 'PyTorch L-BFGS only supports batch_size == 1'
-
+    visualize = False
     device = torch.device('cuda') if use_cuda else torch.device('cpu')
+    projection = body_fit_data.get_projection()
 
     if degrees is None:
         degrees = [0, 90, 180, 270]
@@ -324,11 +327,16 @@ def fit_single_frame(img,
                                    gt_joints[:, right_shoulder_idx])
         try_both_orient = shoulder_dist.item() < side_view_thsh
 
+        # print("projection.color_cam:", projection.color_cam)
+
         # Update the value of the translation of the camera as well as
         # the image center.
         with torch.no_grad():
             camera.translation[:] = init_t.view_as(camera.translation)
             camera.center[:] = torch.tensor([W, H], dtype=dtype) * 0.5
+            print("camera.center 1:", camera.center)
+            camera.center[:] = torch.tensor(projection.color_cam["c"], dtype=dtype)
+            print("camera.center 2:", camera.center)
 
         # Re-enable gradient calculation for the camera translation
         camera.translation.requires_grad = True
